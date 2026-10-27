@@ -2,16 +2,16 @@ import os
 import requests
 import time
 import random
-import json
 from bs4 import BeautifulSoup
 import ollama
 
 # --- CONFIGURATION ---
 OLLAMA_MODEL = "dolphin-2.9-llama3"
-GOOGLE_CREDS_FILE = ".devcontainer/google_creds.json" # Place your Google JSON here
-DOCUMENT_ID = "YOUR_GOOGLE_DOC_ID_HERE" 
-# If using local Wi-Fi check, set this to your Ngrok/LAN IP:
-LOCAL_CHECK_ENDPOINT = "http://localhost:8000/check" 
+GOOGLE_CREDS_FILE = ".devcontainer/google_creds.json" 
+DOCUMENT_ID = "YOUR_GOOGLE_DOC_ID_HERE" # Replace with your actual Document ID
+
+# PASTE YOUR APPS SCRIPT WEB APP URL HERE (From Step 1)
+APPS_SCRIPT_URL = "PASTE_YOUR_WEB_APP_URL_HERE" 
 
 def scrape_youtube(query="fresh free proxy list 2026"):
     """Scrapes YouTube search results for text containing proxy links."""
@@ -22,7 +22,6 @@ def scrape_youtube(query="fresh free proxy list 2026"):
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
-        # Get all visible text, limiting context size for LLM efficiency
         return soup.get_text()[:4000]
     except Exception as e:
         print(f"Scrape Error: {e}")
@@ -38,10 +37,8 @@ def extract_proxies(raw_text):
     {raw_text}
     """
     try:
-        # Connect to local Ollama instance running in the codespace
         response = ollama.chat(model=OLLAMA_MODEL, messages=[{'role': 'user', 'content': prompt}])
         extracted = response['message']['content'].strip().split('\n')
-        # Filter out empty lines
         return [p.strip() for p in extracted if p.strip()]
     except Exception as e:
         print(f"LLM Extraction Error: {e}")
@@ -51,13 +48,11 @@ def check_unblocked(proxies):
     """Checks if proxies are actually working/unblocked on the current network."""
     working = []
     for proxy in proxies:
-        # Clean protocol prefix if missing for standard http/https check
         clean_proxy = proxy
         if not any(proxy.startswith(p) for p in ['http://', 'https://', 'socks5://']):
             clean_proxy = f"http://{proxy}"
             
         try:
-            # Check against a reliable endpoint
             resp = requests.get("https://httpbin.org/ip", proxies={"http": clean_proxy, "https": clean_proxy}, timeout=5)
             if resp.status_code == 200:
                 working.append(proxy)
@@ -67,25 +62,16 @@ def check_unblocked(proxies):
     return working
 
 def update_google_doc(links):
-    """Updates the specified Google Doc with the new list."""
-    from google.oauth2.service_account import Credentials
-    from googleapiclient.discovery import build
-    
+    """Sends links to your Google Apps Script bridge."""
+    data = {"links": "\n".join(links)}
     try:
-        creds = Credentials.from_service_account_file(GOOGLE_CREDS_FILE)
-        service = build('docs', 'v1', credentials=creds)
-        
-        # Insert at the beginning
-        request = {
-            'insertText': {
-                'location': {'index': 1},
-                'text': "\n".join(links) + "\n---\n"
-            }
-        }
-        service.documents().batchUpdate(documentId=DOCUMENT_ID, body={'requests': [request]}).execute()
-        print(f"Updated Google Doc with {len(links)} proxies.")
+        response = requests.post(APPS_SCRIPT_URL, data=data)
+        if response.text == "Success":
+            print(f"✅ Updated Google Doc with {len(links)} proxies via Bridge!")
+        else:
+            print(f"❌ Bridge Error: {response.text}")
     except Exception as e:
-        print(f"Google Docs Error: {e}")
+        print(f"Bridge Connection Error: {e}")
 
 def main():
     print("🚀 Starting Proxy Automation...")
@@ -104,7 +90,7 @@ def main():
     working_proxies = check_unblocked(raw_proxies)
     print(f"   ✅ Working Proxies: {len(working_proxies)}")
     
-    # 4. Update Docs
+    # 4. Update Docs via Bridge
     if working_proxies:
         update_google_doc(working_proxies)
     else:
