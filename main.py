@@ -11,7 +11,7 @@ GOOGLE_CREDS_FILE = ".devcontainer/google_creds.json"
 DOCUMENT_ID = "YOUR_GOOGLE_DOC_ID_HERE" # Replace with your actual Document ID
 
 # PASTE YOUR APPS SCRIPT WEB APP URL HERE (From Step 1)
-APPS_SCRIPT_URL = "PASTE_YOUR_WEB_APP_URL_HERE" 
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcvJ4oG9vhfJVOk8abouZmBEHWPqh-2a0qKXbLDU5L_8v_FQXhQmNwBRvFVXFFhfc/exec" 
 
 def scrape_youtube(query="fresh free proxy list 2026"):
     """Scrapes YouTube search results for text containing proxy links."""
